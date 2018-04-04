@@ -11,10 +11,13 @@ int cur_gun_id[3];
 int cur_eqp_gun=1;
 int elapsed=0;
 int stance;
+bool rapidFire[3];
+bool autoFire[3];
 bool isOn=false;
 bool isMapOpen=false;
 bool isInventoryOpen=false;
 bool isMenuOpen=false;
+bool rapidFireRunning=false;
 
 
 using namespace std;
@@ -250,6 +253,24 @@ void initPistols(){
     Revolver.name="Revolver";
 }
 
+string b2s(bool b){
+    if (b)
+        return "True";
+    return "False";
+}
+string getCurrentAttachments(){
+    string ret="|";
+    int i=cur_eqp_gun-1;
+    if (gunAttachments[i][0])
+        ret+=" Vertical Grip |";
+    if (gunAttachments[i][1])
+        ret+=" Angled Grip |";
+    if (gunAttachments[i][2])
+        ret+=" Stock |";
+    if (gunAttachments[i][3])
+        ret+=" Compensator |";
+    return ret;
+}
 void init(){
     initARs();
     initSMGs();
@@ -274,27 +295,30 @@ void listKeys(){
             "F3: Change Sniper" << endl <<
             "F4: Change Pistol" << endl << endl <<
             "0: Remove Attachments" << endl <<
-            "1: Add Vertical Grip" << endl <<
-            "2: Add Angeled Grip" << endl <<
-            "3: Add Stock" << endl <<
-            "4: Add Compensator" << endl <<
-            "5: Change Scope" << endl <<
-            "6: Reset All Paramters";;
+            "1: Change Grip" << endl <<
+            "2: Add Stock" << endl <<
+            "3: Add Compensator" << endl <<
+            "4: Change Scope" << endl <<
+            "6: Reset All Parameters" << endl <<
+            "G: AutoFire";
 }
 void status(){
     int i=cur_eqp_gun-1;
     system("CLS");
-    cout << "Status: " << isRunning() << endl <<
-            "   Map: " << isMapOpen << endl <<
-            "   Menu: " << isMenuOpen << endl <<
-            "   Inventory: " << isInventoryOpen << endl <<
+    cout << "Status: " << b2s(isRunning()) << endl <<
+            "   Map: " << b2s(isMapOpen) << endl <<
+            "   Menu: " << b2s(isMenuOpen) << endl <<
+            "   Inventory: " << b2s(isInventoryOpen) << endl <<
+            "Mouse1 Status: " << b2s(keyDown(1)) << endl <<
             "Weapon: " << Guns[i].name << endl <<
             "Gun Slot: " << cur_eqp_gun << endl <<
             "Scope: " << scopeType[i] << endl <<
             "Stance: " << stance << endl <<
+            "Rapid Fire: " << b2s(rapidFire[i]) << endl <<
             "RPS: " << Guns[i].RPS << endl <<
             "Current Shot: " << currentShot << endl <<
-            //"Single Fire: " << Guns[i].isSingle << endl <<
+            "Single Fire: " << Guns[i].isSingle << endl <<
+            "Attachments: " << getCurrentAttachments() << endl <<
             "Base Y: " << Guns[i].val_y[stance][currentShot] << endl <<
             "Mod Y: " << attMod[i] << endl << endl;
     listKeys();
@@ -311,7 +335,27 @@ void moveMouse(){
     if (currentShot>=40)
         currentShot=0;
 }
-//Attachments
+void rapidFireFunc(){
+    //turn mouse off
+    if (isOn)
+        keybd_event(1,0x45,KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP,0);
+    rapidFireRunning=true;
+    isOn=false;
+    while (rapidFireRunning)
+    {
+        if (keyDown(1))
+        {
+            rapidFireRunning=false;
+            Sleep(200);
+            isOn=true;
+            break;
+        }
+        keybd_event( 75,0x45,KEYEVENTF_EXTENDEDKEY | 0,0 );
+        keybd_event( 75,0x45,KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP,0);
+        moveMouse();
+        status();
+    }
+}//Attachments
 
 void removeAttachments(){
     int i = cur_eqp_gun-1;
@@ -324,6 +368,9 @@ void resetToDefault(){
     Guns[0]=Winchester;//load a default AR to button 1;
     Guns[1]=AK;//load a default AR to button 1;
     Guns[2]=P1911;//load a default AR to button 1;
+    rapidFire[0]=false;
+    rapidFire[1]=false;
+    rapidFire[2]=false;
     cur_gun_id[0]=12;
     cur_gun_id[1]=1;
     cur_gun_id[2]=22;
@@ -334,41 +381,37 @@ void resetToDefault(){
 }
 void addStock(){
     int i = cur_eqp_gun-1;
-    if (gunAttachments[i][0])
-        return;
-    gunAttachments[i][0]=true;
-    attMod[i]+=2;
-}
-void addVerticalGrip(){
-    int i = cur_eqp_gun-1;
-    if (gunAttachments[i][1])
-        return;
+    gunAttachments[i][2]=!gunAttachments[i][2];
     if (gunAttachments[i][2])
+        attMod[i]+=2;
+    else
+        attMod[i]-=2;}
+void toggleGrip(){
+    int i = cur_eqp_gun-1;
+    if (gunAttachments[i][0])
     {
-        gunAttachments[i][2]=false;
+        gunAttachments[i][0]=false;
+        gunAttachments[i][1]=true;
         attMod[i]-=3;
     }
-    gunAttachments[i][1]=true;
-    attMod[i]+=6;
-}
-void addErgoGrip(){
-    int i = cur_eqp_gun-1;
-    if (gunAttachments[i][2])
-        return;
-    if (gunAttachments[i][1])
+    else if (gunAttachments[i][1])
     {
         gunAttachments[i][1]=false;
-        attMod[i]-=6;
+        attMod[i]-=3;
     }
-    gunAttachments[i][2]=true;
-    attMod[i]+=3;
+    else
+    {
+        gunAttachments[i][0]=true;
+        attMod[i]+=6;
+    }
 }
 void addComp(){
     int i = cur_eqp_gun-1;
+    gunAttachments[i][3]=!gunAttachments[i][3];
     if (gunAttachments[i][3])
-        return;
-    gunAttachments[i][3]=true;
-    attMod[i]+=6;
+        attMod[i]+=6;
+    else
+        attMod[i]-=6;
 }
 void changeScope(){
     int i = cur_eqp_gun-1;
@@ -525,6 +568,20 @@ int main (void){
             resetToDefault();
             Sleep(200);
         }
+        else if (keyDown(71)) // G is pressed
+        {
+            rapidFire[cur_eqp_gun-1]=!rapidFire[cur_eqp_gun-1];
+            Sleep(200);
+        }
+        else if (keyDown(86) && isOn)
+        {
+            moveMouse();
+            keybd_event( 75,0x45,KEYEVENTF_EXTENDEDKEY | 0,0 );
+            keybd_event( 75,0x45,KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP,0);
+            elapsed=0;
+            status();
+            continue;
+        }
         if (keyDown(107)) //+ is pressed
         {
             Guns[cur_eqp_gun-1].val_y[stance][0]++;
@@ -560,25 +617,20 @@ int main (void){
             removeAttachments();
         else if (keyDown(97)) // KP_1 is pressed
         {
-            addVerticalGrip();
+            toggleGrip();
             Sleep(200);
         }
         else if (keyDown(98)) // KP_2 is pressed
         {
-            addErgoGrip();
+            addStock();
             Sleep(200);
         }
         else if (keyDown(99)) // KP_3 is pressed
         {
-            addStock();
-            Sleep(200);
-        }
-        else if (keyDown(100)) // KP_4 is pressed
-        {
             addComp();
             Sleep(200);
         }
-        else if (keyDown(101)) // KP_5 is pressed
+        else if (keyDown(100)) // KP_4 is pressed
         {
             changeScope();
             Sleep(200);
@@ -620,7 +672,9 @@ int main (void){
         if (keyDown(1) && isRunning()) // mouse1 is pressed5
         {
             moveMouse();
-            elapsed=1000;
+            if (rapidFire[cur_eqp_gun-1])
+                rapidFireFunc();
+            elapsed=0;
             status();
             continue;
         }
